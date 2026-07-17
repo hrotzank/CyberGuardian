@@ -1,0 +1,53 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Virtual Environment
+.venv/
+venv/
+
+# Environment variables
+.env
+.env.local
+.env.*
+
+# Databases
+*.db
+*.sqlite3
+test_temp.db
+cyberguardian.db
+frontend/cyberguardian.db
+
+# Node / React
+node_modules/
+dist/
+build/
+.vite/
+.node/
+
+# IDEs
+.vscode/
+.idea/
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Coverage
+.coverage
+htmlcov/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp

@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base Styles ─────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-cg-bg text-cg-text font-sans;
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-cg-panel;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-cg-blue-dark rounded-full;
+  }
+
+  ::selection {
+    @apply bg-cg-blue text-cg-bg;
+  }
+}
+
+/* ─── Component Classes ──────────────────────────────── */
+@layer components {
+
+  .cg-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .cg-card {
+    @apply bg-cg-panel border border-cg-border-subtle rounded-2xl;
+    background: linear-gradient(135deg, #131B2E 0%, #1A2540 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .cg-card-glow {
+    @apply cg-card;
+    box-shadow: 0 4px 32px rgba(0,174,239,0.08), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .cg-btn-primary {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm
+           bg-cg-blue text-cg-bg transition-all duration-300
+           hover:bg-cg-blue-dark hover:shadow-blue-glow hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .cg-btn-outline {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm
+           border border-cg-border text-cg-blue bg-transparent transition-all duration-300
+           hover:bg-cg-blue-glow hover:shadow-blue-glow hover:-translate-y-0.5;
+  }
+
+  .cg-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .cg-badge-low {
+    @apply cg-badge bg-cg-green/15 text-cg-green border border-cg-green/25;
+  }
+  .cg-badge-medium {
+    @apply cg-badge bg-cg-yellow/15 text-cg-yellow border border-cg-yellow/25;
+  }
+  .cg-badge-high {
+    @apply cg-badge bg-cg-red/15 text-cg-red border border-cg-red/25;
+  }
+  .cg-badge-critical {
+    @apply cg-badge bg-cg-red/25 text-cg-red border border-cg-red/40;
+  }
+
+  .cg-input {
+    @apply w-full bg-cg-bg border border-cg-border-subtle rounded-xl px-4 py-3
+           text-cg-text placeholder-cg-text-muted text-sm
+           focus:outline-none focus:border-cg-blue focus:ring-1 focus:ring-cg-blue/30
+           transition-all duration-200;
+  }
+
+  .cg-section-title {
+    @apply text-3xl sm:text-4xl font-bold text-cg-text;
+  }
+
+  .cg-section-subtitle {
+    @apply text-cg-text-muted text-lg mt-3;
+  }
+
+  .cg-dot-live {
+    @apply inline-block w-2 h-2 rounded-full bg-cg-green;
+    animation: pulse-live 2s ease-in-out infinite;
+  }
+
+  /* Glowing border accent line */
+  .cg-accent-line {
+    @apply h-px bg-gradient-to-r from-transparent via-cg-blue to-transparent opacity-30;
+  }
+
+  /* Futuristic grid overlay */
+  .cg-grid-bg {
+    background-image:
+      linear-gradient(rgba(0,174,239,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,174,239,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+}
+
+/* ─── Utility Overrides ──────────────────────────────── */
+@layer utilities {
+  .text-gradient-blue {
+    background: linear-gradient(135deg, #00AEEF 0%, #00D4FF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-hero {
+    background: linear-gradient(135deg, #F5F7FA 0%, #00AEEF 60%, #00D26A 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-mesh {
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 40%, rgba(0,174,239,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 20%, rgba(0,210,106,0.04) 0%, transparent 50%),
+      #0A0F1C;
+  }
+
+  .border-glow-blue {
+    border-color: rgba(0,174,239,0.4);
+    box-shadow: 0 0 12px rgba(0,174,239,0.15);
+  }
+}
+
+/* ─── Keyframes ──────────────────────────────────────── */
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.9); }
+}
+
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes counter-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
