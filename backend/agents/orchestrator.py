@@ -3,10 +3,13 @@ import json
 import requests
 import logging
 import time
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Orchestrator:
     def __init__(self):
-        # 1. Configuración dinámica basada en variables de entorno
+        # Configuración dinámica basada en variables de entorno
         self.provider = os.getenv("AI_PROVIDER", "groq")
         self.model_name = os.getenv("AI_MODEL", "llama-3.3-70b-versatile")
         
@@ -14,11 +17,16 @@ class Orchestrator:
         self.api_key = raw_key.strip() if raw_key else None
         
         logging.basicConfig(level=logging.INFO)
+        
+        # Un pequeño print para confirmar en la terminal que ahora sí la lee
+        if self.api_key:
+            print("✅ API Key de Groq cargada correctamente en Orchestrator")
+        else:
+            print("❌ ATENCIÓN: Sigue sin leerse la API Key")
 
     def analyze(self, content: str, source: str = "web", db=None) -> dict:
         """Alias para mantener compatibilidad con las llamadas del router y tests."""
         return self.analyze_content(content, source, db)
-
     def analyze_content(self, content: str, source: str, db) -> dict:
         """Coordina el análisis usando Groq directamente vía HTTP con fallback heurístico."""
         logging.info("🚀 Iniciando análisis con IA...")
