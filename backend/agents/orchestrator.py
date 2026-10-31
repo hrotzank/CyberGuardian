@@ -11,7 +11,7 @@ class Orchestrator:
     def __init__(self):
         # Configuración dinámica basada en variables de entorno
         self.provider = os.getenv("AI_PROVIDER", "groq")
-        self.model_name = os.getenv("AI_MODEL", "llama-3.3-70b-versatile")
+        self.model_name = os.getenv("AI_MODEL", "openai/gpt-oss-120b")
         
         raw_key = os.getenv("GROQ_API_KEY")
         self.api_key = raw_key.strip() if raw_key else None
