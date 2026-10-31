@@ -7,37 +7,46 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger("cyberguardian.orchestrator")
+
 class Orchestrator:
     def __init__(self):
         # Configuración dinámica basada en variables de entorno
         self.provider = os.getenv("AI_PROVIDER", "groq")
+
+        # Modelo de lenguaje a utilizar. Configurar mediante AI_MODEL en .env.
+        # Modelos disponibles verificados en la API de Groq (oct 2026):
+        #   - openai/gpt-oss-120b  (131k ctx) ← valor por defecto, verificado y disponible
+        #   - openai/gpt-oss-20b   (131k ctx)
+        #   - qwen/qwen3.8-27b     (131k ctx)
+        #   - allam-2-7b           (4k ctx)
+        # Para audio/voz: whisper-large-v3, whisper-large-v3-turbo
+        # Para ver la lista completa: GET https://api.groq.com/openai/v1/models
         self.model_name = os.getenv("AI_MODEL", "openai/gpt-oss-120b")
-        
+
         raw_key = os.getenv("GROQ_API_KEY")
         self.api_key = raw_key.strip() if raw_key else None
-        
-        logging.basicConfig(level=logging.INFO)
-        
-        # Un pequeño print para confirmar en la terminal que ahora sí la lee
+
         if self.api_key:
-            print("✅ API Key de Groq cargada correctamente en Orchestrator")
+            logger.info("Clave de API de Groq cargada correctamente en Orchestrator.")
         else:
-            print("❌ ATENCIÓN: Sigue sin leerse la API Key")
+            logger.warning("GROQ_API_KEY no detectada. El orquestador operará en modo heurístico local.")
 
     def analyze(self, content: str, source: str = "web", db=None) -> dict:
         """Alias para mantener compatibilidad con las llamadas del router y tests."""
         return self.analyze_content(content, source, db)
+
     def analyze_content(self, content: str, source: str, db) -> dict:
         """Coordina el análisis usando Groq directamente vía HTTP con fallback heurístico."""
-        logging.info("🚀 Iniciando análisis con IA...")
-        logging.info(f"📍 Proveedor utilizado: {self.provider}")
-        logging.info(f"📍 Modelo utilizado: {self.model_name}")
+        logger.info("Iniciando análisis con IA...")
+        logger.info(f"Proveedor utilizado: {self.provider}")
+        logger.info(f"Modelo utilizado: {self.model_name}")
         
         endpoint = "https://api.groq.com/openai/v1/chat/completions"
-        logging.info(f"📍 Endpoint utilizado: {endpoint}")
+        logger.info(f"Endpoint utilizado: {endpoint}")
 
         if not self.api_key:
-            logging.warning("⚠️ No se detectó la clave de API Key (GROQ_API_KEY). Activando el modo heurístico local.")
+            logger.warning("Sin GROQ_API_KEY. Activando el modo heurístico local.")
             return self._run_heuristics(content, source, db)
 
         headers = {
@@ -81,8 +90,8 @@ class Orchestrator:
             # Petición HTTP usando requests con timeout de 30 segundos
             response = requests.post(endpoint, headers=headers, json=payload, timeout=30)
             elapsed_time = time.time() - start_time
-            logging.info(f"⏱️ Tiempo de respuesta de la API: {elapsed_time:.2f} segundos")
-            logging.info(f"📡 Código HTTP recibido: {response.status_code}")
+            logger.info(f"Tiempo de respuesta de la API: {elapsed_time:.2f} segundos")
+            logger.info(f"Código HTTP recibido: {response.status_code}")
 
             if response.status_code == 200:
                 response_json = response.json()
@@ -122,28 +131,28 @@ class Orchestrator:
                 if db:
                     self._save_to_db(db, content, source, result_data)
                 
-                logging.info("✅ Análisis con IA Groq finalizado con éxito.")
+                logger.info("Análisis con IA Groq finalizado con éxito.")
                 return result_data
             else:
-                logging.error(f"❌ Error devuelto por la API de Groq (HTTP {response.status_code}): {response.text}")
-                logging.warning("⚠️ Activando el modo heurístico local.")
+                logger.error(f"Error devuelto por la API de Groq (HTTP {response.status_code})")
+                logger.warning("Activando el modo heurístico local.")
                 return self._run_heuristics(content, source, db)
 
         except requests.exceptions.Timeout as t_err:
-            logging.error(f"❌ Timeout al comunicarse con la API de Groq: {t_err}")
-            logging.warning("⚠️ Activando el modo heurístico local.")
+            logger.error(f"Timeout al comunicarse con la API de Groq: {t_err}")
+            logger.warning("Activando el modo heurístico local.")
             return self._run_heuristics(content, source, db)
         except requests.exceptions.RequestException as r_err:
-            logging.error(f"❌ Error de red / HTTP al comunicarse con la API de Groq: {r_err}")
-            logging.warning("⚠️ Activando el modo heurístico local.")
+            logger.error(f"Error de red / HTTP al comunicarse con la API de Groq: {r_err}")
+            logger.warning("Activando el modo heurístico local.")
             return self._run_heuristics(content, source, db)
         except json.JSONDecodeError as j_err:
-            logging.error(f"❌ Error al deserializar la respuesta JSON de la API de Groq: {j_err}")
-            logging.warning("⚠️ Activando el modo heurístico local.")
+            logger.error(f"Error al deserializar la respuesta JSON de la API de Groq: {j_err}")
+            logger.warning("Activando el modo heurístico local.")
             return self._run_heuristics(content, source, db)
         except Exception as e:
-            logging.error(f"❌ Excepción inesperada en análisis con IA: {e}")
-            logging.warning("⚠️ Activando el modo heurístico local.")
+            logger.error(f"Excepción inesperada en análisis con IA: {e}")
+            logger.warning("Activando el modo heurístico local.")
             return self._run_heuristics(content, source, db)
 
     def _normalize_data(self, data: dict):
@@ -174,9 +183,9 @@ class Orchestrator:
                 "recommendations": data["recommendations"],
                 "educational_explanation": str(data["educational_explanation"])
             })
-            logging.info("✅ Análisis registrado exitosamente en la base de datos.")
+            logger.info("Análisis registrado exitosamente en la base de datos.")
         except Exception as db_err:
-            logging.error(f"❌ Error al guardar en base de datos: {db_err}")
+            logger.error(f"Error al guardar en base de datos: {db_err}")
 
     def _run_heuristics(self, content: str, source: str, db) -> dict:
         from backend.services.url_service import URLService

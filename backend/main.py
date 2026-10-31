@@ -2,13 +2,14 @@ import os
 import sys
 import logging
 from dotenv import load_dotenv
+
 # Cargar las variables de entorno desde el archivo .env
 load_dotenv()
+
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-print("🔑 ¿API Key detectada por Python?:", bool(os.getenv("GEMINI_API_KEY")))
 
 # Add parent directory of backend to sys.path if running this file directly
 # to ensure absolute imports (backend.database...) work seamlessly
@@ -51,12 +52,20 @@ app = FastAPI(
 )
 
 # Configure CORS Middleware
+# ALLOWED_ORIGINS: lista de orígenes separados por coma en .env
+# Ejemplo producción: ALLOWED_ORIGINS=https://cyberguardian.app,https://www.cyberguardian.app
+# Ejemplo desarrollo local: ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+# IMPORTANTE: No usar allow_origins=["*"] junto con allow_credentials=True
+#             ya que los navegadores rechazan esa combinación (violación CORS spec).
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Global unhandled exception handler to return clean JSON error payloads
