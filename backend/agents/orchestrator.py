@@ -12,41 +12,42 @@ logger = logging.getLogger("cyberguardian.orchestrator")
 class Orchestrator:
     def __init__(self):
         # Configuración dinámica basada en variables de entorno
-        self.provider = os.getenv("AI_PROVIDER", "groq")
+        self.provider = os.getenv("AI_PROVIDER", "groq").lower().strip()
 
         # Modelo de lenguaje a utilizar. Configurar mediante AI_MODEL en .env.
-        # Modelos disponibles verificados en la API de Groq (oct 2026):
-        #   - openai/gpt-oss-120b  (131k ctx) ← valor por defecto, verificado y disponible
-        #   - openai/gpt-oss-20b   (131k ctx)
-        #   - qwen/qwen3.8-27b     (131k ctx)
-        #   - allam-2-7b           (4k ctx)
-        # Para audio/voz: whisper-large-v3, whisper-large-v3-turbo
-        # Para ver la lista completa: GET https://api.groq.com/openai/v1/models
-        self.model_name = os.getenv("AI_MODEL", "openai/gpt-oss-120b")
+        default_model = "grok-beta" if self.provider == "xai" else "openai/gpt-oss-120b"
+        self.model_name = os.getenv("AI_MODEL", default_model)
 
-        raw_key = os.getenv("GROQ_API_KEY")
+        # Endpoint base oficial según el proveedor
+        if self.provider == "xai":
+            self.api_base = "https://api.x.ai/v1"
+        else:
+            self.api_base = "https://api.groq.com/openai/v1"
+
+        raw_key = os.getenv("GROQ_API_KEY") or os.getenv("XAI_API_KEY")
         self.api_key = raw_key.strip() if raw_key else None
 
         if self.api_key:
-            logger.info("Clave de API de Groq cargada correctamente en Orchestrator.")
+            provider_label = "xAI (Grok)" if self.provider == "xai" else "Groq"
+            logger.info(f"Clave de API de {provider_label} cargada correctamente en Orchestrator.")
         else:
-            logger.warning("GROQ_API_KEY no detectada. El orquestador operará en modo heurístico local.")
+            logger.warning("Clave de API no detectada. El orquestador operará en modo heurístico local.")
 
     def analyze(self, content: str, source: str = "web", db=None) -> dict:
         """Alias para mantener compatibilidad con las llamadas del router y tests."""
         return self.analyze_content(content, source, db)
 
     def analyze_content(self, content: str, source: str, db) -> dict:
-        """Coordina el análisis usando Groq directamente vía HTTP con fallback heurístico."""
+        """Coordina el análisis usando xAI o Groq directamente vía HTTP con fallback heurístico."""
         logger.info("Iniciando análisis con IA...")
         logger.info(f"Proveedor utilizado: {self.provider}")
         logger.info(f"Modelo utilizado: {self.model_name}")
         
-        endpoint = "https://api.groq.com/openai/v1/chat/completions"
+        endpoint = f"{self.api_base}/chat/completions"
         logger.info(f"Endpoint utilizado: {endpoint}")
 
         if not self.api_key:
-            logger.warning("Sin GROQ_API_KEY. Activando el modo heurístico local.")
+            logger.warning("Sin clave de API configurada. Activando el modo heurístico local.")
             return self._run_heuristics(content, source, db)
 
         headers = {
@@ -131,23 +132,23 @@ class Orchestrator:
                 if db:
                     self._save_to_db(db, content, source, result_data)
                 
-                logger.info("Análisis con IA Groq finalizado con éxito.")
+                logger.info(f"Análisis con IA ({self.provider}) finalizado con éxito.")
                 return result_data
             else:
-                logger.error(f"Error devuelto por la API de Groq (HTTP {response.status_code})")
+                logger.error(f"Error devuelto por la API de {self.provider} (HTTP {response.status_code})")
                 logger.warning("Activando el modo heurístico local.")
                 return self._run_heuristics(content, source, db)
 
         except requests.exceptions.Timeout as t_err:
-            logger.error(f"Timeout al comunicarse con la API de Groq: {t_err}")
+            logger.error(f"Timeout al comunicarse con la API de {self.provider}: {t_err}")
             logger.warning("Activando el modo heurístico local.")
             return self._run_heuristics(content, source, db)
         except requests.exceptions.RequestException as r_err:
-            logger.error(f"Error de red / HTTP al comunicarse con la API de Groq: {r_err}")
+            logger.error(f"Error de red / HTTP al comunicarse con la API de {self.provider}: {r_err}")
             logger.warning("Activando el modo heurístico local.")
             return self._run_heuristics(content, source, db)
         except json.JSONDecodeError as j_err:
-            logger.error(f"Error al deserializar la respuesta JSON de la API de Groq: {j_err}")
+            logger.error(f"Error al deserializar la respuesta JSON de la API de {self.provider}: {j_err}")
             logger.warning("Activando el modo heurístico local.")
             return self._run_heuristics(content, source, db)
         except Exception as e:
