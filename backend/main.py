@@ -1,6 +1,9 @@
 import os
 import sys
+import asyncio
 import logging
+from contextlib import asynccontextmanager
+from typing import Optional
 from dotenv import load_dotenv
 
 # Cargar las variables de entorno desde el archivo .env
@@ -9,7 +12,6 @@ load_dotenv()
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 
 # Add parent directory of backend to sys.path if running this file directly
 # to ensure absolute imports (backend.database...) work seamlessly
@@ -31,8 +33,11 @@ logger = logging.getLogger("cyberguardian")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Handles application startup and shutdown events.
-    Ensures database tables are created on startup.
+    Gestiona el ciclo de vida de la aplicación FastAPI:
+    1. Inicializa las tablas de la base de datos en el arranque (startup).
+    2. Inicia el bot de Telegram en una tarea asíncrona en segundo plano sin bloquear el servidor.
+    3. Detiene y cancela limpiamente la tarea del bot al apagar el servidor (shutdown)
+       para evitar fugas de memoria o sockets colgados.
     """
     logger.info("Initializing database tables on startup...")
     try:
@@ -40,8 +45,52 @@ async def lifespan(app: FastAPI):
         logger.info("Database tables initialized successfully.")
     except Exception as e:
         logger.critical(f"Failed to initialize database tables: {str(e)}", exc_info=True)
+
+    # Iniciar bot de Telegram en segundo plano de manera desacoplada y no bloqueante
+    telegram_bot = None
+    bot_task: Optional[asyncio.Task] = None
+
+    try:
+        from backend.telegram_bot import CyberGuardianTelegramBot
+        telegram_bot = CyberGuardianTelegramBot()
+        app.state.telegram_bot = telegram_bot
+
+        if telegram_bot.is_configured:
+            logger.info("Iniciando bot de Telegram en segundo plano...")
+            bot_task = asyncio.create_task(
+                telegram_bot.start_polling(), 
+                name="cyberguardian_telegram_bot"
+            )
+            app.state.bot_task = bot_task
+            logger.info("Tarea en segundo plano del bot de Telegram iniciada exitosamente.")
+        else:
+            logger.warning("TELEGRAM_BOT_TOKEN no configurado en .env. El bot de Telegram no se iniciará automáticamente.")
+    except Exception as e:
+        logger.error(f"No se pudo iniciar el bot de Telegram en segundo plano: {e}", exc_info=True)
+
     yield
+
     logger.info("Shutting down CyberGuardian API...")
+    if telegram_bot:
+        try:
+            logger.info("Solicitando detención limpia del bot de Telegram...")
+            telegram_bot.stop()
+        except Exception as e:
+            logger.warning(f"Error al solicitar detención de bot de Telegram: {e}")
+
+    if bot_task and not bot_task.done():
+        try:
+            bot_task.cancel()
+            try:
+                await asyncio.wait_for(bot_task, timeout=3.0)
+            except asyncio.CancelledError:
+                pass
+        except asyncio.TimeoutError:
+            logger.warning("Timeout al esperar finalización de la tarea del bot de Telegram.")
+        except Exception as e:
+            logger.warning(f"Error al cancelar la tarea del bot de Telegram: {e}")
+
+    logger.info("CyberGuardian API y servicios en segundo plano detenidos correctamente.")
 
 # Initialize FastAPI application
 app = FastAPI(
